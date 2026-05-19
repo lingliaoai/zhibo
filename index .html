@@ -1,0 +1,608 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>灵聊AI · 直播话术助手</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);min-height:100vh;padding:1.5rem 1rem 3rem}
+    .container{max-width:640px;margin:0 auto}
+
+    /* 顶部 */
+    .header{text-align:center;margin-bottom:1.5rem}
+    .header .logo{font-size:36px;margin-bottom:6px}
+    .header h1{font-size:24px;font-weight:700;color:#fff;margin-bottom:4px}
+    .header p{font-size:13px;color:rgba(255,255,255,0.8)}
+
+    /* 卡片 */
+    .card{background:#fff;border-radius:20px;padding:1.5rem;box-shadow:0 8px 32px rgba(0,0,0,0.15);margin-bottom:1rem}
+
+    /* 登录/注册 */
+    .auth-wrap{text-align:center}
+    .auth-wrap h2{font-size:18px;font-weight:700;margin-bottom:6px;color:#1a1a1a}
+    .auth-wrap p{font-size:13px;color:#888;margin-bottom:1.25rem}
+    .auth-tab{display:flex;background:#f3f4f6;border-radius:10px;padding:3px;margin-bottom:1.25rem;gap:3px}
+    .auth-tab button{flex:1;padding:9px;border:none;border-radius:8px;background:transparent;font-size:14px;font-weight:600;color:#888;cursor:pointer;transition:all 0.2s}
+    .auth-tab button.active{background:#fff;color:#4f46e5;box-shadow:0 2px 8px rgba(0,0,0,0.08)}
+    input[type=email],input[type=password]{width:100%;padding:11px 14px;border:1.5px solid #e5e7eb;border-radius:10px;font-size:14px;outline:none;margin-bottom:10px;transition:border-color 0.2s;background:#fafafa}
+    input:focus{border-color:#4f46e5;background:#fff}
+
+    /* 按钮 */
+    .btn-primary{width:100%;padding:13px;background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;border:none;border-radius:12px;font-size:15px;font-weight:700;cursor:pointer;transition:opacity 0.2s,transform 0.1s;letter-spacing:0.5px}
+    .btn-primary:hover:not(:disabled){opacity:0.92;transform:translateY(-1px)}
+    .btn-primary:disabled{opacity:0.45;cursor:not-allowed;transform:none}
+    .btn-outline{padding:9px 16px;border:1.5px solid #e5e7eb;border-radius:9px;background:#fff;font-size:13px;font-weight:500;color:#555;cursor:pointer;transition:all 0.15s}
+    .btn-outline:hover{border-color:#4f46e5;color:#4f46e5;background:#f5f3ff}
+
+    /* 用户状态栏 */
+    .user-bar{display:flex;align-items:center;justify-content:space-between;margin-bottom:1.25rem;padding-bottom:1rem;border-bottom:1px solid #f0f0f0}
+    .user-info{font-size:13px;color:#555}
+    .user-info strong{color:#1a1a1a}
+    .badge{display:inline-block;padding:2px 8px;border-radius:99px;font-size:11px;font-weight:600;margin-left:6px}
+    .badge-trial{background:#fef3c7;color:#d97706}
+    .badge-member{background:#d1fae5;color:#059669}
+    .badge-expired{background:#fee2e2;color:#dc2626}
+
+    /* 试用状态卡片 */
+    .plan-cards{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:1.25rem}
+    .plan-card{border:1.5px solid #e5e7eb;border-radius:12px;padding:12px;text-align:center}
+    .plan-card.active-plan{border-color:#a5b4fc;background:#f5f3ff}
+    .plan-card.expired-plan{border-color:#fca5a5;background:#fff5f5}
+    .plan-card h3{font-size:13px;font-weight:700;margin-bottom:4px;color:#1a1a1a}
+    .plan-card p{font-size:11px;color:#888}
+    .plan-card .days-left{font-size:20px;font-weight:800;color:#4f46e5;margin:4px 0}
+    .plan-card.expired-plan .days-left{color:#dc2626}
+
+    /* Tab */
+    .tab-bar{display:flex;background:#f3f4f6;border-radius:12px;padding:4px;margin-bottom:1.25rem;gap:4px}
+    .tab-btn{flex:1;padding:10px 0;border:none;border-radius:9px;background:transparent;font-size:14px;font-weight:600;color:#888;cursor:pointer;transition:all 0.2s}
+    .tab-btn.active{background:#fff;color:#4f46e5;box-shadow:0 2px 8px rgba(0,0,0,0.08)}
+    .tab-btn:disabled{opacity:0.4;cursor:not-allowed}
+    .tab-panel{display:none}
+    .tab-panel.active{display:block}
+
+    /* 输入区 */
+    textarea{width:100%;min-height:90px;resize:vertical;font-size:14px;padding:12px;border:1.5px solid #e5e7eb;border-radius:10px;font-family:inherit;outline:none;margin-bottom:1rem;background:#fafafa;transition:border-color 0.2s;line-height:1.6}
+    textarea:focus{border-color:#4f46e5;background:#fff}
+
+    /* 图片上传 */
+    #drop-zone{border:2px dashed #d1d5db;border-radius:12px;padding:1.5rem;text-align:center;cursor:pointer;margin-bottom:1rem;background:#fafafa;transition:all 0.15s;min-height:120px;display:flex;align-items:center;justify-content:center}
+    #drop-zone:hover{background:#f0f0ff;border-color:#a5b4fc}
+    #drop-zone.dragover{background:#eef4ff;border-color:#4f46e5}
+    #preview-img{max-width:100%;max-height:200px;border-radius:8px}
+    .placeholder-inner{color:#aaa}
+    .placeholder-inner .icon{font-size:28px;margin-bottom:6px}
+    .placeholder-inner p{font-size:13px}
+    .btn-row{display:flex;gap:8px;margin-bottom:1rem}
+
+    /* 生成按钮 */
+    .gen-btn{width:100%;padding:13px;background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;border:none;border-radius:12px;font-size:15px;font-weight:700;cursor:pointer;transition:opacity 0.2s,transform 0.1s;letter-spacing:0.5px}
+    .gen-btn:hover:not(:disabled){opacity:0.92;transform:translateY(-1px)}
+    .gen-btn:disabled{opacity:0.45;cursor:not-allowed;transform:none}
+
+    /* 进度 */
+    .progress-wrap{display:none;margin-top:1rem}
+    .progress-track{height:3px;background:#eee;border-radius:2px;overflow:hidden}
+    .progress-bar{height:100%;width:30%;background:linear-gradient(90deg,#667eea,#764ba2);border-radius:2px;animation:slide 1.2s ease-in-out infinite}
+    @keyframes slide{0%{transform:translateX(-100%)}100%{transform:translateX(400%)}}
+    .status-msg{font-size:12px;color:#999;margin-top:6px}
+
+    /* 结果 */
+    .result-wrap{display:none;margin-top:1.25rem}
+    .result-card{background:#f8f7ff;border-radius:12px;border:1px solid #e0e0ff;padding:1.25rem}
+    .result-text{font-size:14px;line-height:2;white-space:pre-wrap;color:#1a1a1a}
+    .copy-btn{margin-top:10px;padding:7px 14px;border:1.5px solid #e5e7eb;border-radius:8px;background:#fff;font-size:13px;color:#555;cursor:pointer;transition:all 0.15s}
+    .copy-btn:hover{border-color:#4f46e5;color:#4f46e5}
+
+    /* 到期提示 */
+    .expired-notice{background:#fff5f5;border:1.5px solid #fca5a5;border-radius:12px;padding:1.25rem;text-align:center;margin-bottom:1rem}
+    .expired-notice h3{font-size:16px;font-weight:700;color:#dc2626;margin-bottom:6px}
+    .expired-notice p{font-size:13px;color:#666;line-height:1.6}
+    .coming-soon{display:inline-block;margin-top:10px;padding:8px 20px;background:#fee2e2;border-radius:99px;font-size:13px;font-weight:600;color:#dc2626}
+
+    /* 下载区 */
+    .download-section{margin-top:0}
+    .download-section h3{font-size:15px;font-weight:700;margin-bottom:12px;color:#1a1a1a}
+    .download-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+    .download-item{border:1.5px solid #e5e7eb;border-radius:12px;padding:14px;text-align:center;cursor:pointer;transition:all 0.2s}
+    .download-item:hover{border-color:#a5b4fc;background:#f5f3ff}
+    .download-item .dl-icon{font-size:28px;margin-bottom:6px}
+    .download-item h4{font-size:13px;font-weight:700;color:#1a1a1a;margin-bottom:3px}
+    .download-item p{font-size:11px;color:#888}
+
+    /* iPhone 引导弹窗 */
+    .modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:100;align-items:flex-end;justify-content:center}
+    .modal-overlay.show{display:flex}
+    .modal-box{background:#fff;border-radius:20px 20px 0 0;padding:1.5rem;width:100%;max-width:480px;animation:slideUp 0.3s ease}
+    @keyframes slideUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
+    .modal-box h3{font-size:16px;font-weight:700;margin-bottom:12px;text-align:center}
+    .step-item{display:flex;align-items:flex-start;gap:10px;margin-bottom:12px;font-size:14px;color:#444;line-height:1.5}
+    .step-num{background:#4f46e5;color:#fff;border-radius:50%;width:22px;height:22px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0;margin-top:1px}
+    .modal-close{width:100%;margin-top:12px;padding:12px;background:#f3f4f6;border:none;border-radius:10px;font-size:14px;font-weight:600;color:#555;cursor:pointer}
+
+    /* 提示消息 */
+    .toast{position:fixed;top:20px;left:50%;transform:translateX(-50%);background:#1a1a1a;color:#fff;padding:10px 20px;border-radius:99px;font-size:13px;z-index:999;opacity:0;transition:opacity 0.3s;pointer-events:none}
+    .toast.show{opacity:1}
+
+    .tip{font-size:12px;color:#aaa;margin-bottom:0.75rem}
+    .divider{height:1px;background:#f0f0f0;margin:1rem 0}
+    .err{color:#dc2626;font-size:13px;margin-top:6px;text-align:center}
+  </style>
+</head>
+<body>
+<div class="container">
+
+  <!-- 标题 -->
+  <div class="header">
+    <div class="logo">🤖</div>
+    <h1>灵聊AI · 直播话术助手</h1>
+    <p>智能分析观众弹幕，生成温柔自然的回复话术</p>
+  </div>
+
+  <!-- ══ 登录/注册卡片 ══ -->
+  <div class="card" id="auth-card">
+    <div class="auth-wrap">
+      <h2>欢迎使用灵聊AI</h2>
+      <p>注册即可免费试用 · 文字版7天 · 识图版3天</p>
+      <div class="auth-tab">
+        <button class="active" onclick="switchAuth('login')">登录</button>
+        <button onclick="switchAuth('register')">注册</button>
+      </div>
+      <input type="email" id="auth-email" placeholder="邮箱地址"/>
+      <input type="password" id="auth-password" placeholder="密码（至少6位）"/>
+      <p class="err" id="auth-err"></p>
+      <button class="btn-primary" id="auth-btn" onclick="doAuth()" style="margin-top:6px">登录</button>
+    </div>
+  </div>
+
+  <!-- ══ 主功能卡片（登录后显示）══ -->
+  <div id="main-area" style="display:none">
+
+    <!-- 用户状态栏 -->
+    <div class="card">
+      <div class="user-bar">
+        <div class="user-info">
+          👤 <strong id="user-email-display"></strong>
+        </div>
+        <button class="btn-outline" onclick="doLogout()">退出</button>
+      </div>
+
+      <!-- 试用状态 -->
+      <div class="plan-cards">
+        <div class="plan-card" id="text-plan-card">
+          <h3>💬 文字版</h3>
+          <div class="days-left" id="text-days"></div>
+          <p id="text-plan-desc"></p>
+        </div>
+        <div class="plan-card" id="vision-plan-card">
+          <h3>📸 识图版</h3>
+          <div class="days-left" id="vision-days"></div>
+          <p id="vision-plan-desc"></p>
+        </div>
+      </div>
+
+      <!-- Tab -->
+      <div class="tab-bar">
+        <button class="tab-btn active" id="tab-text-btn" onclick="switchTab('text')">💬 文字版</button>
+        <button class="tab-btn" id="tab-vision-btn" onclick="switchTab('vision')">📸 识图版</button>
+        <button class="tab-btn" onclick="switchTab('download')">📥 下载</button>
+      </div>
+
+      <!-- ── 文字版 ── -->
+      <div class="tab-panel active" id="panel-text">
+        <div id="text-expired-notice" class="expired-notice" style="display:none">
+          <h3>💬 文字版试用已到期</h3>
+          <p>感谢你的体验！付费会员功能即将上线，敬请期待。</p>
+          <span class="coming-soon">🔔 付费功能即将开放</span>
+        </div>
+        <div id="text-func">
+          <p class="tip">输入观众的弹幕或评论，AI 生成 3 条回复话术</p>
+          <textarea id="text-input" placeholder="例：主播今天看起来心情不好呢&#10;例：你们主播好不专业哦&#10;例：我每天都来看你直播"></textarea>
+          <button class="gen-btn" id="text-gen-btn" onclick="generateText()" disabled>✨ 生成回复建议</button>
+          <div class="progress-wrap" id="text-progress">
+            <div class="progress-track"><div class="progress-bar"></div></div>
+            <p class="status-msg">正在生成话术...</p>
+          </div>
+          <div class="result-wrap" id="text-result-wrap">
+            <div class="result-card"><p class="result-text" id="text-result-text"></p></div>
+            <button class="copy-btn" onclick="copyResult('text-result-text')">📋 复制结果</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── 识图版 ── -->
+      <div class="tab-panel" id="panel-vision">
+        <div id="vision-expired-notice" class="expired-notice" style="display:none">
+          <h3>📸 识图版试用已到期</h3>
+          <p>感谢你的体验！付费会员功能即将上线，敬请期待。</p>
+          <span class="coming-soon">🔔 付费功能即将开放</span>
+        </div>
+        <div id="vision-func">
+          <p class="tip">上传聊天截图，AI 自动识别弹幕并生成回复</p>
+          <div id="drop-zone" onclick="document.getElementById('file-input').click()">
+            <div id="preview-wrap" style="display:none"><img id="preview-img" alt="截图预览"/></div>
+            <div class="placeholder-inner" id="placeholder">
+              <div class="icon">🖼️</div>
+              <p>点击选择截图，或拖拽图片到这里</p>
+            </div>
+          </div>
+          <input type="file" id="file-input" accept="image/*" style="display:none"/>
+          <input type="file" id="camera-input" accept="image/*" capture="environment" style="display:none"/>
+          <div class="btn-row">
+            <button class="btn-outline" onclick="document.getElementById('file-input').click()">🖼️ 从相册选</button>
+            <button class="btn-outline" onclick="document.getElementById('camera-input').click()">📷 拍照上传</button>
+          </div>
+          <textarea id="vision-extra" placeholder="补充说明（可选）" style="min-height:60px"></textarea>
+          <button class="gen-btn" id="vision-gen-btn" onclick="generateVision()" disabled>✨ 生成回复建议</button>
+          <div class="progress-wrap" id="vision-progress">
+            <div class="progress-track"><div class="progress-bar"></div></div>
+            <p class="status-msg" id="vision-status">正在识别截图...</p>
+          </div>
+          <div class="result-wrap" id="vision-result-wrap">
+            <div class="result-card"><p class="result-text" id="vision-result-text"></p></div>
+            <button class="copy-btn" onclick="copyResult('vision-result-text')">📋 复制结果</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── 下载 ── -->
+      <div class="tab-panel" id="panel-download">
+        <div class="download-section">
+          <h3>📥 下载灵聊AI</h3>
+          <div class="download-grid">
+            <div class="download-item" onclick="downloadApkText()">
+              <div class="dl-icon">🤖</div>
+              <h4>安卓 · 文字版</h4>
+              <p>DeepSeek驱动</p>
+            </div>
+            <div class="download-item" onclick="downloadApkVision()">
+              <div class="dl-icon">📸</div>
+              <h4>安卓 · 识图版</h4>
+              <p>阿里云百炼驱动</p>
+            </div>
+            <div class="download-item" onclick="showIphoneGuide()">
+              <div class="dl-icon">🍎</div>
+              <h4>iPhone · 添加桌面</h4>
+              <p>无需下载，一步添加</p>
+            </div>
+            <div class="download-item" onclick="showIphoneGuide()">
+              <div class="dl-icon">💻</div>
+              <h4>网页版</h4>
+              <p>当前即是网页版</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+</div>
+
+<!-- iPhone 引导弹窗 -->
+<div class="modal-overlay" id="iphone-modal" onclick="closeModal()">
+  <div class="modal-box" onclick="event.stopPropagation()">
+    <h3>🍎 iPhone 添加到主屏幕</h3>
+    <div class="step-item"><div class="step-num">1</div><div>用 Safari 浏览器打开本网页（其他浏览器不支持）</div></div>
+    <div class="step-item"><div class="step-num">2</div><div>点击底部中间的 <strong>分享按钮</strong>（方块加箭头的图标）</div></div>
+    <div class="step-item"><div class="step-num">3</div><div>在弹出菜单中向下滑，找到 <strong>"添加到主屏幕"</strong></div></div>
+    <div class="step-item"><div class="step-num">4</div><div>点击右上角 <strong>"添加"</strong>，图标就会出现在桌面</div></div>
+    <button class="modal-close" onclick="closeModal()">知道了</button>
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<script>
+// ══ Supabase 配置 ══
+const SUPABASE_URL = 'https://jmpxbwldsmxjgzguwlwr.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImptcHhid2xkc214amd6Z3V3bHdyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkxODA3MDAsImV4cCI6MjA5NDc1NjcwMH0.Wr5U29-Hr2BZXMB8t_uv1T0xpxAosVJwWub7N3BH0sQ';
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+// ══ API 配置 ══
+const DEEPSEEK_KEY = 'sk-23653a77c0a9456fb12a8c2525214c30';
+const ALIYUN_KEY   = 'sk-3912e93215e74b03870d2bb45c711070';
+
+// APK 下载链接（上传APK后替换这里）
+const APK_TEXT_URL   = '#'; // 文字版APK链接
+const APK_VISION_URL = '#'; // 识图版APK链接
+
+let currentUser = null;
+let userProfile = null;
+let authMode = 'login';
+let currentBase64 = null;
+
+// ══ 初始化 ══
+window.addEventListener('DOMContentLoaded', async () => {
+  const { data: { session } } = await sb.auth.getSession();
+  if (session) await loginSuccess(session.user);
+});
+
+// ══ 登录/注册切换 ══
+function switchAuth(mode) {
+  authMode = mode;
+  document.querySelectorAll('.auth-tab button').forEach((b,i) => {
+    b.classList.toggle('active', (i===0&&mode==='login')||(i===1&&mode==='register'));
+  });
+  document.getElementById('auth-btn').textContent = mode === 'login' ? '登录' : '注册';
+  document.getElementById('auth-err').textContent = '';
+}
+
+async function doAuth() {
+  const email = document.getElementById('auth-email').value.trim();
+  const password = document.getElementById('auth-password').value;
+  const errEl = document.getElementById('auth-err');
+  errEl.textContent = '';
+  if (!email || !password) { errEl.textContent = '请填写邮箱和密码'; return; }
+
+  const btn = document.getElementById('auth-btn');
+  btn.disabled = true;
+  btn.textContent = '请稍候...';
+
+  let result;
+  if (authMode === 'login') {
+    result = await sb.auth.signInWithPassword({ email, password });
+  } else {
+    result = await sb.auth.signUp({ email, password });
+  }
+
+  btn.disabled = false;
+  btn.textContent = authMode === 'login' ? '登录' : '注册';
+
+  if (result.error) {
+    const msg = result.error.message;
+    if (msg.includes('Invalid login')) errEl.textContent = '邮箱或密码错误';
+    else if (msg.includes('already registered')) errEl.textContent = '该邮箱已注册，请直接登录';
+    else errEl.textContent = msg;
+    return;
+  }
+
+  if (authMode === 'register' && !result.data.session) {
+    errEl.style.color = '#059669';
+    errEl.textContent = '✅ 注册成功！请查收邮件验证后登录';
+    return;
+  }
+
+  await loginSuccess(result.data.user);
+}
+
+async function loginSuccess(user) {
+  currentUser = user;
+  document.getElementById('auth-card').style.display = 'none';
+  document.getElementById('main-area').style.display = 'block';
+  document.getElementById('user-email-display').textContent = user.email;
+
+  // 获取用户资料
+  const { data } = await sb.from('profiles').select('*').eq('id', user.id).single();
+  userProfile = data;
+  updatePlanUI();
+}
+
+async function doLogout() {
+  await sb.auth.signOut();
+  currentUser = null;
+  userProfile = null;
+  document.getElementById('auth-card').style.display = 'block';
+  document.getElementById('main-area').style.display = 'none';
+  document.getElementById('auth-email').value = '';
+  document.getElementById('auth-password').value = '';
+}
+
+// ══ 试用状态显示 ══
+function updatePlanUI() {
+  if (!userProfile) return;
+  const now = new Date();
+
+  // 文字版
+  const textEnd = userProfile.text_member_end
+    ? new Date(userProfile.text_member_end)
+    : new Date(userProfile.text_trial_end);
+  const textDays = Math.ceil((textEnd - now) / 86400000);
+  const textActive = textDays > 0;
+
+  const textCard = document.getElementById('text-plan-card');
+  textCard.className = 'plan-card ' + (textActive ? 'active-plan' : 'expired-plan');
+  document.getElementById('text-days').textContent = textActive ? textDays + '天' : '已到期';
+  document.getElementById('text-plan-desc').textContent = textActive
+    ? (userProfile.text_member_end ? '会员有效期' : '试用剩余')
+    : '试用已结束';
+
+  document.getElementById('text-expired-notice').style.display = textActive ? 'none' : 'block';
+  document.getElementById('text-func').style.display = textActive ? 'block' : 'none';
+
+  // 识图版
+  const visionEnd = userProfile.vision_member_end
+    ? new Date(userProfile.vision_member_end)
+    : new Date(userProfile.vision_trial_end);
+  const visionDays = Math.ceil((visionEnd - now) / 86400000);
+  const visionActive = visionDays > 0;
+
+  const visionCard = document.getElementById('vision-plan-card');
+  visionCard.className = 'plan-card ' + (visionActive ? 'active-plan' : 'expired-plan');
+  document.getElementById('vision-days').textContent = visionActive ? visionDays + '天' : '已到期';
+  document.getElementById('vision-plan-desc').textContent = visionActive
+    ? (userProfile.vision_member_end ? '会员有效期' : '试用剩余')
+    : '试用已结束';
+
+  document.getElementById('vision-expired-notice').style.display = visionActive ? 'none' : 'block';
+  document.getElementById('vision-func').style.display = visionActive ? 'block' : 'none';
+}
+
+// ══ Tab 切换 ══
+function switchTab(tab) {
+  ['text','vision','download'].forEach(t => {
+    document.getElementById('panel-' + t).classList.toggle('active', t === tab);
+  });
+  document.querySelectorAll('.tab-btn').forEach((b, i) => {
+    b.classList.toggle('active', ['text','vision','download'][i] === tab);
+  });
+}
+
+// ══ 文字版生成 ══
+document.addEventListener('DOMContentLoaded', () => {
+  const ti = document.getElementById('text-input');
+  if (ti) ti.addEventListener('input', () => {
+    document.getElementById('text-gen-btn').disabled = !ti.value.trim();
+  });
+});
+
+async function generateText() {
+  const input = document.getElementById('text-input').value.trim();
+  if (!input) return;
+  setLoading('text', true);
+
+  const systemPrompt = `你是一位温柔治愈风格的直播陪伴助手，帮助主播生成自然、真实、有温度的回复话术。
+
+读取观众发言，判断情绪和意图，生成3条回复：
+
+【温柔回应】
+（接住情绪，给对方一个软着陆，1~2句）
+
+【共鸣回应】
+（说出对方没说完的话，让他觉得被理解，1~2句）
+
+【轻松回应】
+（用温和的方式把气氛带起来，1~2句）
+
+要求：口语化；不用"亲""宝贝"；不提礼物不催打赏；每条简短自然。`;
+
+  try {
+    const resp = await fetch('https://api.deepseek.com/v1/chat/completions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + DEEPSEEK_KEY },
+      body: JSON.stringify({
+        model: 'deepseek-chat',
+        messages: [{ role: 'system', content: systemPrompt }, { role: 'user', content: '观众发言：' + input }],
+        max_tokens: 800
+      })
+    });
+    const data = await resp.json();
+    if (data.error) throw new Error(data.error.message);
+    showResult('text', data.choices[0].message.content);
+  } catch (e) {
+    showResult('text', '❌ 出错了：' + e.message);
+  } finally {
+    setLoading('text', false);
+    document.getElementById('text-gen-btn').disabled = !document.getElementById('text-input').value.trim();
+  }
+}
+
+// ══ 识图版生成 ══
+function loadImage(file) {
+  if (!file || !file.type.startsWith('image/')) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    currentBase64 = ev.target.result.split(',')[1];
+    document.getElementById('preview-img').src = ev.target.result;
+    document.getElementById('preview-wrap').style.display = 'block';
+    document.getElementById('placeholder').style.display = 'none';
+    updateVisionBtn();
+  };
+  reader.readAsDataURL(file);
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  const fi = document.getElementById('file-input');
+  const ci = document.getElementById('camera-input');
+  const ve = document.getElementById('vision-extra');
+  if (fi) fi.addEventListener('change', e => loadImage(e.target.files[0]));
+  if (ci) ci.addEventListener('change', e => loadImage(e.target.files[0]));
+  if (ve) ve.addEventListener('input', updateVisionBtn);
+
+  const dz = document.getElementById('drop-zone');
+  if (dz) {
+    dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('dragover'); });
+    dz.addEventListener('dragleave', () => dz.classList.remove('dragover'));
+    dz.addEventListener('drop', e => { e.preventDefault(); dz.classList.remove('dragover'); loadImage(e.dataTransfer.files[0]); });
+  }
+});
+
+function updateVisionBtn() {
+  const extra = document.getElementById('vision-extra').value.trim();
+  document.getElementById('vision-gen-btn').disabled = !(currentBase64 || extra);
+}
+
+async function generateVision() {
+  const extra = document.getElementById('vision-extra').value.trim();
+  setLoading('vision', true);
+
+  const systemPrompt = `你是一位温柔治愈风格的直播陪伴助手。
+任务：识别截图中的弹幕/评论，分析情绪，生成3条回复。
+格式：
+📌 识别到的聊天内容：（列出关键弹幕）
+【温柔回应】（1~2句）
+【共鸣回应】（1~2句）
+【轻松回应】（1~2句）
+要求：口语化，不用"亲""宝贝"，不催打赏。`;
+
+  const userContent = [];
+  if (currentBase64) userContent.push({ type: 'image_url', image_url: { url: `data:image/jpeg;base64,${currentBase64}` } });
+  userContent.push({ type: 'text', text: '请分析这张聊天截图，生成直播回复话术。' + (extra ? '\n补充说明：' + extra : '') });
+
+  try {
+    const resp = await fetch('https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + ALIYUN_KEY },
+      body: JSON.stringify({ model: 'qwen-vl-plus', messages: [{ role: 'system', content: systemPrompt }, { role: 'user', content: userContent }], max_tokens: 1024 })
+    });
+    const data = await resp.json();
+    if (data.error) throw new Error(data.error.message || JSON.stringify(data.error));
+    showResult('vision', data.choices[0].message.content);
+  } catch (e) {
+    showResult('vision', '❌ 出错了：' + e.message);
+  } finally {
+    setLoading('vision', false);
+    updateVisionBtn();
+  }
+}
+
+// ══ 下载 ══
+function downloadApkText() {
+  if (APK_TEXT_URL === '#') { showToast('APK 文件即将上传，敬请期待！'); return; }
+  window.open(APK_TEXT_URL);
+}
+function downloadApkVision() {
+  if (APK_VISION_URL === '#') { showToast('APK 文件即将上传，敬请期待！'); return; }
+  window.open(APK_VISION_URL);
+}
+function showIphoneGuide() {
+  document.getElementById('iphone-modal').classList.add('show');
+}
+function closeModal() {
+  document.getElementById('iphone-modal').classList.remove('show');
+}
+
+// ══ 工具函数 ══
+function setLoading(tab, on) {
+  document.getElementById(tab + '-gen-btn').disabled = on;
+  document.getElementById(tab + '-progress').style.display = on ? 'block' : 'none';
+  if (on) document.getElementById(tab + '-result-wrap').style.display = 'none';
+}
+function showResult(tab, text) {
+  document.getElementById(tab + '-result-text').textContent = text;
+  document.getElementById(tab + '-result-wrap').style.display = 'block';
+}
+function copyResult(id) {
+  const text = document.getElementById(id).textContent;
+  navigator.clipboard.writeText(text).then(() => showToast('已复制到剪贴板！')).catch(() => {
+    const el = document.getElementById(id);
+    const range = document.createRange();
+    range.selectNode(el);
+    window.getSelection().removeAllRanges();
+    window.getSelection().addRange(range);
+    document.execCommand('copy');
+    showToast('已复制！');
+  });
+}
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2500);
+}
+</script>
+</body>
+</html>
