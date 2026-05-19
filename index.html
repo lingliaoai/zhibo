@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>直播话术助手</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #f5f5f5;
+      color: #1a1a1a;
+      min-height: 100vh;
+      padding: 1.5rem 1rem;
+    }
+
+    .container {
+      max-width: 600px;
+      margin: 0 auto;
+    }
+
+    .title {
+      font-size: 22px;
+      font-weight: 600;
+      margin-bottom: 4px;
+    }
+
+    .subtitle {
+      font-size: 14px;
+      color: #666;
+      margin-bottom: 1.5rem;
+    }
+
+    #drop-zone {
+      border: 1.5px dashed #ccc;
+      border-radius: 12px;
+      padding: 2rem;
+      text-align: center;
+      cursor: pointer;
+      margin-bottom: 1rem;
+      background: #fff;
+      transition: background 0.15s, border-color 0.15s;
+    }
+
+    #drop-zone:hover { background: #f9f9f9; }
+    #drop-zone.dragover { background: #eef4ff; border-color: #4a90d9; }
+
+    #drop-zone i {
+      font-size: 36px;
+      color: #aaa;
+      display: block;
+      margin-bottom: 8px;
+    }
+
+    #drop-zone p {
+      font-size: 14px;
+      color: #888;
+    }
+
+    #preview-img {
+      max-width: 100%;
+      max-height: 240px;
+      border-radius: 8px;
+      margin-bottom: 8px;
+    }
+
+    .btn-row {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 1rem;
+    }
+
+    button {
+      flex: 1;
+      padding: 10px 12px;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      background: #fff;
+      font-size: 14px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      transition: background 0.15s;
+    }
+
+    button:hover { background: #f5f5f5; }
+    button:active { transform: scale(0.98); }
+    button:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+    #gen-btn {
+      width: 100%;
+      font-size: 15px;
+      font-weight: 600;
+      padding: 12px;
+      background: #4f46e5;
+      color: #fff;
+      border: none;
+      border-radius: 10px;
+      margin-top: 0.5rem;
+    }
+
+    #gen-btn:hover:not(:disabled) { background: #4338ca; }
+
+    textarea {
+      width: 100%;
+      min-height: 72px;
+      resize: vertical;
+      font-size: 14px;
+      padding: 10px 12px;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      font-family: inherit;
+      outline: none;
+      margin-bottom: 1rem;
+      background: #fff;
+    }
+
+    textarea:focus { border-color: #4f46e5; }
+
+    .progress-wrap {
+      display: none;
+      margin-top: 1rem;
+    }
+
+    .progress-track {
+      height: 3px;
+      background: #eee;
+      border-radius: 2px;
+      overflow: hidden;
+    }
+
+    .progress-bar {
+      height: 100%;
+      width: 30%;
+      background: #4f46e5;
+      border-radius: 2px;
+      animation: slide 1.2s ease-in-out infinite;
+    }
+
+    @keyframes slide {
+      0% { transform: translateX(-100%); }
+      100% { transform: translateX(400%); }
+    }
+
+    .status-msg {
+      font-size: 13px;
+      color: #888;
+      margin-top: 6px;
+    }
+
+    .result-wrap {
+      display: none;
+      margin-top: 1rem;
+    }
+
+    .result-card {
+      background: #fff;
+      border-radius: 12px;
+      border: 1px solid #eee;
+      padding: 1.25rem;
+    }
+
+    .result-text {
+      font-size: 14px;
+      line-height: 1.9;
+      white-space: pre-wrap;
+      color: #1a1a1a;
+    }
+
+    .copy-btn {
+      margin-top: 8px;
+      font-size: 13px;
+      color: #555;
+      flex: unset;
+      padding: 6px 12px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+
+    <p class="title">📸 直播话术助手</p>
+    <p class="subtitle">上传聊天截图，AI 帮你生成回复话术</p>
+
+    <div id="drop-zone" onclick="document.getElementById('file-input').click()">
+      <div id="preview-wrap" style="display:none;">
+        <img id="preview-img" alt="截图预览" />
+      </div>
+      <div id="placeholder">
+        <i>🖼️</i>
+        <p>点击选择截图，或拖拽图片到这里</p>
+      </div>
+    </div>
+    <input type="file" id="file-input" accept="image/*" style="display:none;" />
+    <input type="file" id="camera-input" accept="image/*" capture="environment" style="display:none;" />
+
+    <div class="btn-row">
+      <button onclick="document.getElementById('file-input').click()">🖼️ 从相册选</button>
+      <button onclick="document.getElementById('camera-input').click()">📷 拍照上传</button>
+    </div>
+
+    <textarea id="extra-input" placeholder="补充说明（可选）：例如这条弹幕是质疑主播态度的"></textarea>
+
+    <button id="gen-btn" onclick="generate()" disabled>✨ 生成回复建议</button>
+
+    <div class="progress-wrap" id="progress-wrap">
+      <div class="progress-track">
+        <div class="progress-bar"></div>
+      </div>
+      <p class="status-msg" id="status-msg">正在请求 AI 分析...</p>
+    </div>
+
+    <div class="result-wrap" id="result-wrap">
+      <div class="result-card">
+        <p class="result-text" id="result-text"></p>
+      </div>
+      <button class="copy-btn" onclick="copyResult()">📋 复制结果</button>
+    </div>
+
+  </div>
+
+  <script>
+    const API_KEY = 'sk-3912e93215e74b03870d2bb45c711070';
+    const BASE_URL = 'https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions';
+    const MODEL = 'qwen-vl-plus';
+
+    let currentBase64 = null;
+
+    function loadImage(file) {
+      if (!file || !file.type.startsWith('image/')) return;
+      const reader = new FileReader();
+      reader.onload = function (ev) {
+        currentBase64 = ev.target.result.split(',')[1];
+        document.getElementById('preview-img').src = ev.target.result;
+        document.getElementById('preview-wrap').style.display = 'block';
+        document.getElementById('placeholder').style.display = 'none';
+        updateBtn();
+      };
+      reader.readAsDataURL(file);
+    }
+
+    document.getElementById('file-input').addEventListener('change', e => loadImage(e.target.files[0]));
+    document.getElementById('camera-input').addEventListener('change', e => loadImage(e.target.files[0]));
+    document.getElementById('extra-input').addEventListener('input', updateBtn);
+
+    function updateBtn() {
+      const extra = document.getElementById('extra-input').value.trim();
+      document.getElementById('gen-btn').disabled = !(currentBase64 || extra);
+    }
+
+    const dz = document.getElementById('drop-zone');
+    dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('dragover'); });
+    dz.addEventListener('dragleave', () => dz.classList.remove('dragover'));
+    dz.addEventListener('drop', e => {
+      e.preventDefault();
+      dz.classList.remove('dragover');
+      loadImage(e.dataTransfer.files[0]);
+    });
+
+    async function generate() {
+      const extra = document.getElementById('extra-input').value.trim();
+      document.getElementById('gen-btn').disabled = true;
+      document.getElementById('progress-wrap').style.display = 'block';
+      document.getElementById('result-wrap').style.display = 'none';
+      document.getElementById('status-msg').textContent = '正在请求 AI 分析...';
+
+      const systemPrompt = `你是一位温柔治愈风格的直播陪伴助手，帮助主播生成自然、真实、有温度的回复话术。
+
+【你的任务】
+1. 如果收到了聊天截图，请先识别截图中的聊天内容（弹幕/评论/私信）
+2. 分析观众的情绪和意图
+3. 生成3条回复建议
+
+【输出格式】
+---
+📌 识别到的聊天内容：
+（列出截图中你看到的关键弹幕/评论）
+
+【温柔回应】
+（接住情绪，给对方一个软着陆，1~2句）
+
+【共鸣回应】
+（说出对方没说完的话，让他觉得被理解，1~2句）
+
+【轻松回应】
+（用温和的方式把气氛带起来，1~2句）
+---
+
+要求：口语化，像真人在说话；不用"亲""宝贝"等称呼；不提礼物、不催打赏`;
+
+      const userContent = [];
+      if (currentBase64) {
+        userContent.push({ type: 'image_url', image_url: { url: `data:image/jpeg;base64,${currentBase64}` } });
+      }
+      userContent.push({
+        type: 'text',
+        text: '请分析这张聊天截图中的内容，生成直播回复话术。' + (extra ? '\n补充说明：' + extra : '')
+      });
+
+      try {
+        const resp = await fetch(BASE_URL, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ' + API_KEY
+          },
+          body: JSON.stringify({
+            model: MODEL,
+            messages: [
+              { role: 'system', content: systemPrompt },
+              { role: 'user', content: userContent }
+            ],
+            max_tokens: 1024
+          })
+        });
+        const data = await resp.json();
+        if (data.error) throw new Error(data.error.message || JSON.stringify(data.error));
+        const text = data.choices[0].message.content;
+        document.getElementById('result-text').textContent = text;
+        document.getElementById('result-wrap').style.display = 'block';
+      } catch (e) {
+        document.getElementById('result-text').textContent = '❌ 出错了：' + e.message;
+        document.getElementById('result-wrap').style.display = 'block';
+      } finally {
+        document.getElementById('progress-wrap').style.display = 'none';
+        updateBtn();
+      }
+    }
+
+    function copyResult() {
+      const text = document.getElementById('result-text').textContent;
+      navigator.clipboard.writeText(text).then(() => alert('已复制！'));
+    }
+  </script>
+</body>
+</html>
